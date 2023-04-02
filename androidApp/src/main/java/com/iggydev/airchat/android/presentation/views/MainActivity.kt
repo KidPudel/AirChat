@@ -1,5 +1,7 @@
-package com.iggydev.airchat.android
+package com.iggydev.airchat.android.presentation.views
 
+import android.app.Application
+import android.bluetooth.BluetoothManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,8 +11,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.iggydev.airchat.Greeting
+import com.iggydev.airchat.android.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
+    private val bluetoothManager by lazy {
+        getSystemService(BluetoothManager::class.java)
+    }
+
+    private val bluetoothAdapter by lazy {
+        bluetoothManager?.adapter
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
