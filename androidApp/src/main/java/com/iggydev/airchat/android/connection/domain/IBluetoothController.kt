@@ -5,8 +5,8 @@ import kotlinx.coroutines.flow.StateFlow
 
 interface IBluetoothController {
     // track devices
-    val pairedDevices: StateFlow<List<BluetoothDevice>>
-    val scannedDevices: StateFlow<List<BluetoothDevice>>
+    val pairedDevices: StateFlow<List<BluetoothDeviceDomain>>
+    val scannedDevices: StateFlow<List<BluetoothDeviceDomain>>
 
     fun startDiscovery()
     fun stopDiscovery()

@@ -5,12 +5,15 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Context
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import com.iggydev.airchat.android.connection.domain.BluetoothDeviceDomain
 import com.iggydev.airchat.android.connection.domain.IBluetoothController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.util.LinkedList
 
 // so android won't complain 🙃
 @SuppressLint("MissingPermission")
@@ -25,16 +28,37 @@ class BluetoothController(
     }
 
     private val _pairedDevices = MutableStateFlow<List<BluetoothDeviceDomain>>(emptyList())
-    override val pairedDevices: StateFlow<List<BluetoothDevice>>
-        get() = _pairedDevices as StateFlow<List<BluetoothDevice>>
-    override val scannedDevices: StateFlow<List<BluetoothDevice>>
-        get() = TODO("Not yet implemented")
+    override val pairedDevices: StateFlow<List<BluetoothDeviceDomain>>
+        get() = _pairedDevices.asStateFlow()
 
+    private val _scannedDevices = MutableStateFlow<List<BluetoothDeviceDomain>>(emptyList())
+    override val scannedDevices: StateFlow<List<BluetoothDeviceDomain>>
+        get() = _scannedDevices.asStateFlow()
+
+    val fetchDeviceReceiver = DetectDeviceReceiver(onDetectDevice = { detectedDevice ->
+        // find new devices that is not scanned yet
+        _scannedDevices.update { devices ->
+            val newDevice = detectedDevice.toBluetoothDeviceDomain()
+            if (newDevice in devices) devices else devices + newDevice
+        }
+    })
+
+
+    init {
+        queryPairedDevices()
+    }
 
     override fun startDiscovery() {
-        if (hasPermission(permission = Manifest.permission.BLUETOOTH_SCAN)) {
-            bluetoothAdapter?.startDiscovery()
+        if (!hasPermission(permission = Manifest.permission.BLUETOOTH_SCAN)) {
+            return
         }
+        queryPairedDevices()
+
+        // structured description of intent that can match against actions categories and data
+        val foundFilter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+        context.registerReceiver(fetchDeviceReceiver, foundFilter)
+        bluetoothAdapter?.startDiscovery()
+
 
     }
 
@@ -54,10 +78,11 @@ class BluetoothController(
         TODO("Not yet implemented")
     }
 
-    private fun updatePairedDevices() {
+    private fun queryPairedDevices() {
         if (!hasPermission(Manifest.permission.BLUETOOTH_CONNECT)) {
             return
         }
+
         bluetoothAdapter?.bondedDevices
             ?.map { bluetoothDevice -> bluetoothDevice.toBluetoothDeviceDomain() }
             ?.also { newDevices-> _pairedDevices.update {newDevices} }
