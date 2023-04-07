@@ -27,36 +27,38 @@ class BluetoothController(
         bluetoothManager?.adapter
     }
 
-    private val _pairedDevices = MutableStateFlow<List<BluetoothDeviceDomain>>(emptyList())
-    override val pairedDevices: StateFlow<List<BluetoothDeviceDomain>>
+    private val _pairedDevices = MutableStateFlow<List<BluetoothDeviceDomain?>>(emptyList())
+    override val pairedDevices: StateFlow<List<BluetoothDeviceDomain?>>
         get() = _pairedDevices.asStateFlow()
 
-    private val _scannedDevices = MutableStateFlow<List<BluetoothDeviceDomain>>(emptyList())
-    override val scannedDevices: StateFlow<List<BluetoothDeviceDomain>>
+    private val _scannedDevices = MutableStateFlow<List<BluetoothDeviceDomain?>>(emptyList())
+    override val scannedDevices: StateFlow<List<BluetoothDeviceDomain?>>
         get() = _scannedDevices.asStateFlow()
 
-    val fetchDeviceReceiver = DetectDeviceReceiver(onDetectDevice = { detectedDevice ->
-        // find new devices that is not scanned yet
+    val detectDeviceReceiver = DetectDeviceReceiver(onDeviceFound = { detectedDevice ->
         _scannedDevices.update { devices ->
-            val newDevice = detectedDevice.toBluetoothDeviceDomain()
-            if (newDevice in devices) devices else devices + newDevice
+            val detectedDeviceDomain = detectedDevice?.toBluetoothDeviceDomain()
+            if (detectedDeviceDomain in devices) devices else devices + detectedDeviceDomain
         }
     })
 
 
+    // paired up-to-date
     init {
         queryPairedDevices()
     }
 
     override fun startDiscovery() {
-        if (!hasPermission(permission = Manifest.permission.BLUETOOTH_SCAN)) {
+        if (!hasPermission(Manifest.permission.BLUETOOTH_SCAN)) {
             return
         }
+
         queryPairedDevices()
 
-        // structured description of intent that can match against actions categories and data
-        val foundFilter = IntentFilter(BluetoothDevice.ACTION_FOUND)
-        context.registerReceiver(fetchDeviceReceiver, foundFilter)
+        //  register broadcast receiver
+        val deviceFoundIntentFilter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+        context.registerReceiver(detectDeviceReceiver, deviceFoundIntentFilter)
+
         bluetoothAdapter?.startDiscovery()
 
 
@@ -78,14 +80,15 @@ class BluetoothController(
         TODO("Not yet implemented")
     }
 
-    private fun queryPairedDevices() {
-        if (!hasPermission(Manifest.permission.BLUETOOTH_CONNECT)) {
+    override fun queryPairedDevices() {
+        if (!hasPermission(Manifest.permission.BLUETOOTH_SCAN)) {
             return
         }
 
+        // set paired permissions up-to-date
         bluetoothAdapter?.bondedDevices
-            ?.map { bluetoothDevice -> bluetoothDevice.toBluetoothDeviceDomain() }
-            ?.also { newDevices-> _pairedDevices.update {newDevices} }
+            ?.map { bondedDevice -> bondedDevice.toBluetoothDeviceDomain() }
+            ?.also { bondedDevices -> _pairedDevices.update { bondedDevices } }
     }
 
     override fun hasPermission(permission: String): Boolean {
