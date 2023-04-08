@@ -7,9 +7,11 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,16 +26,28 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import com.iggydev.airchat.Greeting
 import com.iggydev.airchat.android.MyApplicationTheme
+import org.koin.androidx.compose.getViewModel
 
 class MainActivity : ComponentActivity() {
+    private val bluetoothManager by lazy {
+        application.getSystemService(BluetoothManager::class.java)
+    }
+    private val bluetoothAdapter by lazy {
+        bluetoothManager.adapter
+    }
+    val isBluetoothEnabled: Boolean = bluetoothAdapter.isEnabled
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContent {
             MyApplicationTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
+                    val bluetoothViewModel = getViewModel<BluetoothViewModel>()
+
                     GreetingView(Greeting().greet())
                 }
             }

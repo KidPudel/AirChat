@@ -2,11 +2,14 @@ package com.iggydev.airchat.android.connection.data
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Context
+import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat.startActivityForResult
 import com.iggydev.airchat.android.connection.domain.BluetoothDeviceDomain
 import com.iggydev.airchat.android.connection.domain.IBluetoothController
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +38,7 @@ class BluetoothController(
     override val scannedDevices: StateFlow<List<BluetoothDeviceDomain?>>
         get() = _scannedDevices.asStateFlow()
 
-    val detectDeviceReceiver = DetectDeviceReceiver(onDeviceFound = { detectedDevice ->
+    private val detectDeviceReceiver = DetectDeviceReceiver(onDeviceFound = { detectedDevice ->
         _scannedDevices.update { devices ->
             val detectedDeviceDomain = detectedDevice?.toBluetoothDeviceDomain()
             if (detectedDeviceDomain in devices) devices else devices + detectedDeviceDomain
@@ -65,7 +68,10 @@ class BluetoothController(
     }
 
     override fun stopDiscovery() {
-        TODO("Not yet implemented")
+        if (!hasPermission(Manifest.permission.BLUETOOTH_SCAN)) {
+            return
+        }
+        bluetoothAdapter?.cancelDiscovery()
     }
 
     override fun connectToDevice() {
@@ -77,7 +83,7 @@ class BluetoothController(
     }
 
     override fun release() {
-        TODO("Not yet implemented")
+        context.unregisterReceiver(detectDeviceReceiver)
     }
 
     override fun queryPairedDevices() {
@@ -90,6 +96,7 @@ class BluetoothController(
             ?.map { bondedDevice -> bondedDevice.toBluetoothDeviceDomain() }
             ?.also { bondedDevices -> _pairedDevices.update { bondedDevices } }
     }
+
 
     override fun hasPermission(permission: String): Boolean {
         return context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
