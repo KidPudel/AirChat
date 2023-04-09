@@ -29,16 +29,44 @@ import com.iggydev.airchat.android.MyApplicationTheme
 import org.koin.androidx.compose.getViewModel
 
 class MainActivity : ComponentActivity() {
+
     private val bluetoothManager by lazy {
-        application.getSystemService(BluetoothManager::class.java)
+        applicationContext.getSystemService(BluetoothManager::class.java)
     }
+
     private val bluetoothAdapter by lazy {
-        bluetoothManager.adapter
+        bluetoothManager?.adapter
     }
-    val isBluetoothEnabled: Boolean = bluetoothAdapter.isEnabled
+
+    private val isBluetoothEnabled: Boolean
+        get() = bluetoothAdapter?.isEnabled == true // get rid of nullability
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val requestPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
+            val canConnect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                permissions[Manifest.permission.BLUETOOTH_CONNECT] == true
+            } else {
+                true
+            }
+
+            if (canConnect && !isBluetoothEnabled) {
+                Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            }
+
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            requestPermissionLauncher.launch (
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                )
+            )
+        }
 
         setContent {
             MyApplicationTheme {
@@ -46,7 +74,6 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    val bluetoothViewModel = getViewModel<BluetoothViewModel>()
 
                     GreetingView(Greeting().greet())
                 }
